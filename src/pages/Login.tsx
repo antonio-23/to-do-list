@@ -1,6 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { useAuth } from "@/components/auth-provider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,30 +11,40 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { useLogin } from "../hooks/auth/useLogin";
+import { useUser } from "../context/UserContext";
 
 export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const { login } = useAuth();
   const navigate = useNavigate();
+  const { login, success } = useLogin();
+  const { user } = useUser();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     setIsLoading(true);
-
-    const result = login(email, password);
-
-    if (result.success) {
-      navigate("/");
-    } else {
-      setError(result.error || "Wystąpił błąd");
-    }
-
+    login({
+      email,
+      password,
+    });
     setIsLoading(false);
   };
+
+  useEffect(() => {
+    if (success) {
+      navigate("/");
+    }
+  }, [success]);
+
+  useEffect(() => {
+    if (user?.token?.length > 0) {
+      navigate("/");
+    }
+  }, []);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-linear-to-br from-blue-50 to-indigo-100 p-4">

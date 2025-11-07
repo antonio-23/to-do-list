@@ -1,26 +1,26 @@
-"use client"
+"use client";
 
-import type React from "react"
+import type React from "react";
 
-import { useState } from "react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Plus } from "lucide-react"
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Plus } from "lucide-react";
 
 interface AddTodoFormProps {
-  onAdd: (title: string) => void
+  onAdd: (title: string) => void;
 }
 
 export function AddTodoForm({ onAdd }: AddTodoFormProps) {
-  const [title, setTitle] = useState("")
+  const [title, setTitle] = useState("");
 
   const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
+    e.preventDefault();
     if (title.trim()) {
-      onAdd(title.trim())
-      setTitle("")
+      onAdd(title.trim());
+      setTitle("");
     }
-  }
+  };
 
   return (
     <form onSubmit={handleSubmit} className="flex gap-2">
@@ -34,5 +34,5 @@ export function AddTodoForm({ onAdd }: AddTodoFormProps) {
         <Plus className="h-5 w-5" />
       </Button>
     </form>
-  )
+  );
 }

@@ -1,6 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { useAuth } from "@/components/auth-provider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,6 +11,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { useRegister } from "../hooks/auth/useRegister";
+import { useUser } from "../context/UserContext";
 
 export default function Register() {
   const [name, setName] = useState("");
@@ -20,7 +21,8 @@ export default function Register() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const { register } = useAuth();
+  const { register, success } = useRegister();
+  const { user } = useUser();
   const navigate = useNavigate();
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -37,18 +39,29 @@ export default function Register() {
       return;
     }
 
+    register({
+      name: String(name.split(" ")?.at(0) || ""),
+      lastName: String(name.split(" ")?.at(1) || ""),
+      email,
+      password,
+      confirmPassword,
+    });
+
     setIsLoading(true);
-
-    const result = register(email, password, name);
-
-    if (result.success) {
-      navigate("/login");
-    } else {
-      setError(result.error || "Wystąpił błąd");
-    }
-
     setIsLoading(false);
   };
+
+  useEffect(() => {
+    if (success) {
+      navigate("/");
+    }
+  }, [success]);
+
+  useEffect(() => {
+    if (user?.token?.length > 0) {
+      navigate("/");
+    }
+  }, []);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-linear-to-br from-blue-50 to-indigo-100 p-4">

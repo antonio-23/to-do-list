@@ -1,7 +1,5 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "@/components/auth-provider";
-import { todoService, type Todo } from "@/lib/todos";
 import { TodoItem } from "@/components/todo-item";
 import { AddTodoForm } from "@/components/add-todo-form";
 import { Button } from "@/components/ui/button";
@@ -13,59 +11,64 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { LogOut, CheckCircle2, Circle } from "lucide-react";
+import { useUser } from "../context/UserContext";
+import { useCreateTodo } from "../hooks/todos/useCreateTodo";
+import { useGetTodos } from "../hooks/todos/useGetTodos";
+import { useToggleTodo } from "../hooks/todos/useToggleTodo";
+import { useDeleteTodo } from "../hooks/todos/useDelteteTodos";
 
 export default function Home() {
-  const { user, logout, isLoading } = useAuth();
   const navigate = useNavigate();
-  const [todos, setTodos] = useState<Todo[]>([]);
+  const { user, clearUser } = useUser();
   const [filter, setFilter] = useState<"all" | "active" | "completed">("all");
+  const { createTodo, error } = useCreateTodo();
+  const { todos, refetch } = useGetTodos();
+  const { toggleTodo } = useToggleTodo();
+  const { deleteTodo } = useDeleteTodo();
 
   useEffect(() => {
-    if (!isLoading && !user) {
+    if (!user.token) {
       navigate("/login");
     }
-  }, [user, isLoading, navigate]);
+  }, [user, navigate]);
 
-  useEffect(() => {
+  const handleAddTodo = async (title: string) => {
     if (user) {
-      setTodos(todoService.getTodos(user.id));
-    }
-  }, [user]);
-
-  const handleAddTodo = (title: string) => {
-    if (user) {
-      const newTodo = todoService.addTodo(user.id, title);
-      setTodos([...todos, newTodo]);
+      try {
+        await createTodo({ title });
+        refetch();
+      } catch (err) {
+        console.error("Błąd podczas tworzenia zadania:", error);
+      }
     }
   };
 
-  const handleToggleTodo = (id: string) => {
+  const handleToggleTodo = async (id: string) => {
     if (user) {
-      todoService.toggleTodo(user.id, id);
-      setTodos(todoService.getTodos(user.id));
+      try {
+        await toggleTodo(id);
+        refetch();
+      } catch (err) {
+        console.error("Błąd podczas przełączania stanu zadania:", error);
+      }
     }
   };
 
-  const handleDeleteTodo = (id: string) => {
-    if (user) {
-      todoService.deleteTodo(user.id, id);
-      setTodos(todoService.getTodos(user.id));
-    }
-  };
-
-  const handleUpdateTodo = (id: string, title: string) => {
-    if (user) {
-      todoService.updateTodo(user.id, id, title);
-      setTodos(todoService.getTodos(user.id));
+  const handleDeleteTodo = async (id: string) => {
+    try {
+      await deleteTodo(id);
+      refetch();
+    } catch (err) {
+      console.error("Błąd podczas usuwania zadania:", error);
     }
   };
 
   const handleLogout = () => {
-    logout();
+    clearUser();
     navigate("/login");
   };
 
-  if (isLoading || !user) {
+  if (!user.token) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-muted-foreground">Ładowanie...</div>
@@ -73,16 +76,10 @@ export default function Home() {
     );
   }
 
-  const filteredTodos = todos.filter((todo) => {
-    if (filter === "active") return !todo.completed;
-    if (filter === "completed") return todo.completed;
-    return true;
-  });
-
   const stats = {
     total: todos.length,
-    active: todos.filter((t) => !t.completed).length,
-    completed: todos.filter((t) => t.completed).length,
+    active: todos.filter((t: any) => t.state === "active").length,
+    completed: todos.filter((t: any) => t.state !== "active").length,
   };
 
   return (
@@ -98,7 +95,6 @@ export default function Home() {
             Wyloguj
           </Button>
         </div>
-
         <div className="grid gap-4 md:grid-cols-3 mb-6">
           <Card>
             <CardHeader className="pb-3">
@@ -125,7 +121,6 @@ export default function Home() {
             </CardHeader>
           </Card>
         </div>
-
         <Card className="mb-6">
           <CardHeader>
             <CardTitle>Dodaj zadanie</CardTitle>
@@ -134,7 +129,6 @@ export default function Home() {
             <AddTodoForm onAdd={handleAddTodo} />
           </CardContent>
         </Card>
-
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
@@ -165,7 +159,7 @@ export default function Home() {
             </div>
           </CardHeader>
           <CardContent>
-            {filteredTodos.length === 0 ? (
+            {todos.length === 0 ? (
               <div className="text-center py-12 text-muted-foreground">
                 {filter === "all" && "Brak zadań. Dodaj pierwsze zadanie!"}
                 {filter === "active" && "Brak aktywnych zadań."}
@@ -173,15 +167,37 @@ export default function Home() {
               </div>
             ) : (
               <div className="space-y-2">
-                {filteredTodos.map((todo) => (
-                  <TodoItem
-                    key={todo.id}
-                    todo={todo}
-                    onToggle={handleToggleTodo}
-                    onDelete={handleDeleteTodo}
-                    onUpdate={handleUpdateTodo}
-                  />
-                ))}
+                {filter === "all" &&
+                  todos.map((todo, i) => (
+                    <TodoItem
+                      key={i}
+                      todo={todo}
+                      onToggle={() => handleToggleTodo((todo as any)._id)}
+                      onDelete={() => handleDeleteTodo((todo as any)._id)}
+                    />
+                  ))}
+                {filter === "active" &&
+                  todos
+                    .filter((todo: any) => todo.state === "active")
+                    .map((todo, i) => (
+                      <TodoItem
+                        key={i}
+                        todo={todo}
+                        onToggle={() => handleToggleTodo((todo as any)._id)}
+                        onDelete={() => handleDeleteTodo((todo as any)._id)}
+                      />
+                    ))}
+                {filter === "completed" &&
+                  todos
+                    .filter((todo: any) => todo.state !== "active")
+                    .map((todo, i) => (
+                      <TodoItem
+                        key={i}
+                        todo={todo}
+                        onToggle={() => handleToggleTodo((todo as any)._id)}
+                        onDelete={() => handleDeleteTodo((todo as any)._id)}
+                      />
+                    ))}
               </div>
             )}
           </CardContent>
